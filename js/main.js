@@ -8,22 +8,19 @@ bs.get('/d2l/api/lp/(version)/organization/info').then((response) => {
 });
 
 let CONSOLE;
-
+let consoleHistory = []; // To store console data
 
 $(document).ready(function () {
     /* Fifth console */
-    let user_commands = ['api', 'classlist', 'enrol', 'enrolment', 'impersonate', 'user', 'versions', 'whoami'];
+    let user_commands = ['classlist', 'enrol', 'enrolment', 'impersonate', 'user', 'versions', 'whoami', 'grade', 'grades'];
     user_commands.sort();
     let all_commands = ['help'].concat(user_commands);
-    
+
     CONSOLE = $('#console').console({
         welcomeMessage: 'Welcome to the console! Type "help" to see the list of commands.\n&&uarr; or &&darr; to scroll through your command history. TAB to autocomplete commands.',
         promptLabel: 'D2L> ',
         commandHandle: async function (line) {
-
             if (line) {
-
-                // trim line and remove double spaces
                 line = line.trim().replace(/\s+/g, ' ');
 
                 let m = 'Command not recognized';
@@ -31,22 +28,20 @@ $(document).ready(function () {
                 let response;
 
                 let commandParts = line.split(' ');
-
                 commandParts[0] = commandParts[0].toLowerCase();
-                
+
                 if (commandParts[0] == "help") {
                     m = "Supported commands: " + user_commands.join(", ");
                 } else if (commandParts[0] == 'api') {
-
                     if (commandParts.length == 3) {
-                        let method = commandParts[1].toLowerCase();;
+                        let method = commandParts[1].toLowerCase();
                         let url = commandParts[2];
                         let data = null;
                         if (method == 'put' || method == 'post' || method == 'submit') {
                             data = $('#json_input').val().trim();
                         }
 
-                        if(method == 'get' || method == 'delete' || data !== null){
+                        if (method == 'get' || method == 'delete' || data !== null) {
                             m = "Calling " + method + " " + url + "\n";
                             m += "See \"JSON Output\" for result. ";
                             api_call(method, url, data);
@@ -56,47 +51,38 @@ $(document).ready(function () {
                         m = "Usage: api <method> <url>\nUse the \"JSON Input\" field to input data\n";
                         m += ' <<a href="https://docs.valence.desire2learn.com/reference.html">>Brightspace API Reference<</a>>';
                     }
-
                 } else if (commandParts[0] == 'classlist') {
-
-                    if(commandParts.length == 2){
+                    if (commandParts.length == 2) {
                         let ou = parseInt(commandParts[1]);
                         let response = await bs.get('/d2l/api/le/(version)/' + ou + '/classlist/');
-
-                        if(typeof response == 'object' && !('Error' in response)){
+                        if (typeof response == 'object' && !('Error' in response)) {
                             m = '';
-                            for(user of response){
-                                m += '<<a onclick="impersonate(\'-i -x ' + user.Identifier + '\');">>' + 
-                                user.DisplayName + " | " + user.OrgDefinedId + " | " + user.ClasslistRoleDisplayName + 
-                                "<</a>>\n";
+                            for (user of response) {
+                                m += '<<a onclick="impersonate(\'-i -x ' + user.Identifier + '\');">>' +
+                                    user.DisplayName + " | " + user.OrgDefinedId + " | " + user.ClasslistRoleDisplayName +
+                                    "<</a>>\n";
                             }
                         } else {
                             m = 'Error: No enrolments found in that course';
                         }
-
                     } else {
                         m = "Usage: classlist <org-unit-id>";
                     }
-
                 } else if (commandParts[0] == 'enrol' || commandParts[0] == 'enroll') {
                     if (commandParts.length >= 2) {
-
                         let user = false;
                         let role = false;
                         let ou = false;
 
-                        for(let i = 1; i < commandParts.length; i++){
-                            if(commandParts[i] == '-u'){
+                        for (let i = 1; i < commandParts.length; i++) {
+                            if (commandParts[i] == '-u') {
                                 user = commandParts[++i];
-                            } else if(commandParts[i] == '-r'){
-                                
-                                if(commandParts[i+1].slice(0,1) == '"'){
-                                    
+                            } else if (commandParts[i] == '-r') {
+                                if (commandParts[i + 1].slice(0, 1) == '"') {
                                     let tempRole = commandParts[++i].slice(1);
-
-                                    for(let j = i + 1; j < commandParts.length; j++){
-                                        if(commandParts[j].slice(-1) == '"'){
-                                            role = tempRole + " " + commandParts[j].slice(0,-1);
+                                    for (let j = i + 1; j < commandParts.length; j++) {
+                                        if (commandParts[j].slice(-1) == '"') {
+                                            role = tempRole + " " + commandParts[j].slice(0, -1);
                                             i = j;
                                             break;
                                         } else {
@@ -104,20 +90,19 @@ $(document).ready(function () {
                                         }
                                     }
 
-                                    if(role == false){
+                                    if (role == false) {
                                         m = "Error: Invalid role";
                                         break;
                                     }
-                                    
                                 } else {
                                     role = commandParts[++i];
                                 }
-                            } else if(commandParts[i] == '-o'){
+                            } else if (commandParts[i] == '-o') {
                                 ou = commandParts[++i];
                             }
                         }
-                        
-                        if(user !== false && role !== false && ou !== false){
+
+                        if (user !== false && role !== false && ou !== false) {
                             let response = await enrol_user(user, role, ou);
                             m = response;
                         }
@@ -127,9 +112,8 @@ $(document).ready(function () {
                     }
                 } else if (commandParts[0] == 'enrolment' || commandParts[0] == 'enrollment') {
                     try {
-
                         let flag = '';
-                        let identifier = commandParts[1].toLowerCase();;
+                        let identifier = commandParts[1].toLowerCase();
 
                         if (commandParts.length > 2 && commandParts[1] == '-i') {
                             flag = commandParts[1] + ' ';
@@ -137,51 +121,39 @@ $(document).ready(function () {
                         }
 
                         let response = await enrollment_status(flag + identifier);
-
                         m = response;
-
-                    } catch (e){
+                    } catch (e) {
                         m = "Usage: enrolment <username|email|banner-id> or -i <user-id>";
                     }
                 } else if (commandParts[0] == "impersonate") {
-
                     let usage = "Usage: impersonate <username|email|banner-id> or -i <user-id>\To cancel: exit";
-
                     if (commandParts.length >= 2) {
-
                         let flags = '';
                         let identifier;
-
-                        if (commandParts.indexOf('-i') != -1){
+                        if (commandParts.indexOf('-i') != -1) {
                             flags += '-i ';
                             commandParts.splice(commandParts.indexOf('-i'), 1);
                         }
 
-                        if(commandParts.indexOf('-x') != -1){
+                        if (commandParts.indexOf('-x') != -1) {
                             flags += '-x ';
                             commandParts.splice(commandParts.indexOf('-x'), 1);
                         }
 
-                        if(commandParts.length != 2){
+                        if (commandParts.length != 2) {
                             m = usage;
-                         
                         } else {
-
                             identifier = commandParts[1];
-
                             response = await impersonate(flags + identifier);
                             m = response;
-                        
                         }
-
                     } else {
                         m = usage;
                     }
                 } else if (commandParts[0] == 'user') {
-
                     if (commandParts.length >= 2) {
                         let flag = '';
-                        let identifier = commandParts[1].toLowerCase();;
+                        let identifier = commandParts[1].toLowerCase();
 
                         if (commandParts.length > 2 && commandParts[1] == '-i') {
                             flag = commandParts[1] + ' ';
@@ -191,36 +163,74 @@ $(document).ready(function () {
                         let response = await user_info(flag + identifier);
 
                         if (typeof response == 'object') {
-
                             m = response.FirstName + " " + response.LastName + " (" + response.UserName + " | " + response.OrgDefinedId + "):\n";
-
                             let orgRole = await bs.get('/d2l/api/lp/(version)/enrollments/users/' + response.UserId + '/orgunits/' + BASE_OU);
-
                             let roleData = await bs.get('/d2l/api/lp/(version)/roles/' + orgRole.RoleId);
-
                             m += "Org-level Role: " + roleData.DisplayName + "\n";
-
                             m += JSON.stringify(response, null, 2);
                         } else {
                             m = 'Error: User not found';
                         }
-
                     } else {
                         m = "Usage: user <username|email|banner-id>\nor\nuser -i <user-id>";
                     }
                 } else if (commandParts[0] == "versions") {
                     let response = await bs.get('/d2l/api/versions/');
                     m = "Current Versions:\n";
-                    for(const [key, value] of Object.entries(bs.versions)){
+                    for (const [key, value] of Object.entries(bs.versions)) {
                         m += key + " : " + value + "\n";
                     }
                     m += "\nLatest API Versions:\n";
-                    for(const api of response){
+                    for (const api of response) {
                         m += api.ProductCode + " : " + api.LatestVersion + "\n";
                     }
                 } else if (commandParts[0] == "whoami") {
                     let response = await bs.get('/d2l/api/lp/(version)/users/whoami');
                     m = JSON.stringify(response, null, 2);
+                } else if (commandParts[0] == "grade" || commandParts[0] == "grades") {
+                    let script = document.createElement('script');
+                    script.src = 'js/grades.js';
+                    script.onload = async function () {
+                        try {
+                            if (commandParts[0] == "grade") {
+                                let user = false;
+                                let ou = false;
+
+                                for (let i = 1; i < commandParts.length; i++) {
+                                    if (commandParts[i] == '-u') {
+                                        user = commandParts[++i];
+                                    } else if (commandParts[i] == '-o') {
+                                        ou = commandParts[++i];
+                                    }
+                                }
+
+                                m = await handleGradeCommand(bs, getUserId, user, ou);
+                            } else if (commandParts[0] == "grades") {
+                                let user = false;
+
+                                for (let i = 1; i < commandParts.length; i++) {
+                                    if (commandParts[i] == '-u') {
+                                        user = commandParts[++i];
+                                    }
+                                }
+
+                                m = await handleGradesCommand(bs, getUserId, user);
+                            }
+
+                            CONSOLE.report([{ msg: m, className: c }]);
+                        } catch (error) {
+                            console.error('Error handling command:', error);
+                            CONSOLE.report([{ msg: 'Error: An issue occurred while processing the command', className: 'jquery-console-message-error' }]);
+                        }
+                    };
+
+                    script.onerror = function () {
+                        CONSOLE.report([{ msg: 'Failed to load grades script', className: 'jquery-console-message-error' }]);
+                    };
+
+                    document.head.appendChild(script);
+
+                    return [{ msg: 'Loading grades script...', className: c }];
                 } else if (commandParts[0] == "exit") {
                     m = "Ending impersonation...";
                     let data = {
@@ -231,6 +241,9 @@ $(document).ready(function () {
                 } else {
                     c = 'jquery-console-message-error';
                 }
+
+                // Store the command and result in history
+                consoleHistory.push({ command: line, result: m });
 
                 return [{ msg: m, className: c }];
             } else {
@@ -254,12 +267,47 @@ $(document).ready(function () {
         storeHistory: true,
         autofocus: true
     });
+    // Download CSV functionality
+    $('#download-csv').click(function () {
+    const consoleOutput = $('.jquery-console-prompt-box, .jquery-console-message-value, .jquery-console-message-error'); // Select console output
+
+    if (consoleOutput.length === 0) {
+        alert("No data to export.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Command\n"; // Only one header column
+
+    consoleOutput.each(function () {
+        let htmlContent = $(this).html().split('<br>'); // Split by <br> tags
+        htmlContent.forEach((line) => {
+            let cleanLine = line.replace(/(&nbsp;|<([^>]+)>|&gt;)/ig, function(match) {
+                switch (match) {
+                    case '&nbsp;':
+                        return ' ';
+                    case '&gt;':
+                        return '>';
+                    default:
+                        return '';
+                }
+            }).trim(); // Remove HTML tags and replace entities
+            csvContent += `"${cleanLine}"\n`;
+        });
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "console_data.csv");
+    document.body.appendChild(link);
+    link.click();
+    });
+
+
 });
 
-
-
 async function impersonate(identifier) {
-
     let openNewTab = true;
     if (identifier.indexOf('-x') != -1) {
         openNewTab = false;
@@ -267,15 +315,13 @@ async function impersonate(identifier) {
     }
 
     let user = await user_info(identifier);
-
-    userId = user.UserId;
+    let userId = user.UserId;
 
     if (!userId) {
         return "Error: User not found";
     }
 
     let url = "/d2l/lp/manageUsers/rpc/rpc_functions.d2lfile?ou=" + BASE_OU + "&d2l_rh=rpc&d2l_rt=call";
-
     let data = {
         d2l_rf: 'ImpersonateUser',
         params: '{"param1":"' + userId + '","param2":"131"}',
@@ -285,42 +331,33 @@ async function impersonate(identifier) {
     let response = await bs.submit(url, data);
 
     if (response && response.Result !== undefined && (response.Result === null || response.Result[0] == "success")) {
-
-        CONSOLE.report([{msg:"\n\nNow impersonating " + user.UserName + "...\n\n", className:"jquery-console-message-value"}]);
-
-        if(openNewTab){
+        CONSOLE.report([{ msg: "\n\nNow impersonating " + user.UserName + "...\n\n", className: "jquery-console-message-value" }]);
+        if (openNewTab) {
             window.open("/d2l/home/" + (WORKING_OU || ''), '_blank').focus();
             return "Success! Opening new page...";
         } else {
-            
             return "Success!";
         }
-    
     } else {
-        return 'Error: impersonnation failed';
+        return 'Error: impersonation failed';
     }
-
 }
 
 async function enrol_user(user, role, ou) {
-
     let userId = await getUserId(user);
-
     if (!userId)
         return 'Error: user not found';
 
     if (typeof role == 'string') {
         role = role.toLowerCase();
-        
         let roles = await bs.get('/d2l/api/lp/(version)/roles/');
-
         roles.forEach(element => {
-            if(element.DisplayName.toLowerCase() == role){
+            if (element.DisplayName.toLowerCase() == role) {
                 role = parseInt(element.Identifier);
             }
         });
 
-        if(typeof role == 'string'){
+        if (typeof role == 'string') {
             return 'Error: role not found';
         }
     }
@@ -340,9 +377,7 @@ async function enrol_user(user, role, ou) {
     }
 }
 
-
 async function enrollment_status(identifier) {
-
     let courses = '';
 
     let user = await user_info(identifier);
@@ -351,10 +386,9 @@ async function enrollment_status(identifier) {
         return 'Error: user not found';
 
     courses += '<<a href="/d2l/lp/manageUsers/admin/newedit_enrollmentLog.d2l?ou=' + BASE_OU + '&d2l_isfromtab=1&uid=' + user.UserId + '">>' +
-        'View Enrollment Log for ' + user.FirstName + ' ' + user.LastName + '<</a>>\n\n';   
+        'View Enrollment Log for ' + user.FirstName + ' ' + user.LastName + '<</a>>\n\n';
 
     let url = "/d2l/api/lp/(version)/enrollments/users/" + user.UserId + "/orgUnits/";
-
     let response = await bs.get(url);
 
     if (typeof response == 'string') {
@@ -378,7 +412,6 @@ async function enrollment_status(identifier) {
 }
 
 async function user_info(identifier) {
-
     identifier = identifier.split(' ');
     let param = 'userName';
 
@@ -395,9 +428,7 @@ async function user_info(identifier) {
     }
 
     let query = (param != 'userId' ? "?" + param + "=" + identifier : identifier);
-
     let url = "/d2l/api/lp/(version)/users/" + query;
-
     let response = await bs.get(url);
 
     if (typeof response == 'string') {
@@ -411,25 +442,20 @@ async function user_info(identifier) {
     }
 
     return response;
-
 }
 
 async function getUserId(identifier) {
-
     let user = await user_info(identifier);
-
-    if(!user)
+    if (!user)
         return false;
 
     return user.UserId;
 }
 
 async function api_call(method, url, data) {
-
     let response = { error: "Invalid method" };
 
     switch (method) {
-
         case 'get':
             response = await bs.get(url);
             break;
@@ -449,14 +475,11 @@ async function api_call(method, url, data) {
         case 'submit':
             response = await bs.submit(url, data);
             break;
-
     }
 
-    // stringify json respones
     if (typeof response == 'object') {
         response = JSON.stringify(response, null, 2);
     }
 
     $('#json_output').val(response);
-
 }
